@@ -17,7 +17,7 @@ def resource_path(relative_path):
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
-player_money = 0
+player_money = 21
 touch_money = 1
 plus_percent = 100
 level=1
@@ -36,7 +36,10 @@ def level_up():
     if level>200:
         touch_money+=level
     touch_money+=level
-    cost*=1.05
+    if level<=200:
+        cost*=1.05
+    else:
+        cost*=1.04
     cost=ceil(cost)
 
 
@@ -106,18 +109,17 @@ def beg(screen):
             if event.type == pygame.QUIT:
                 return False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button==1:
-                    x,y=pygame.mouse.get_pos()
-                    if 500 <= x <= 750 and 80 <= y <= 160 and cost<=player_money:
-                        player_money-=cost
-                        level_up()
-                    elif 500<=x<=750 and 200<=y<=280:
-                        player_money=visit_convenience_store(player_money,screen)
-                    elif 500<=x<=750 and 300<=y<=380:
-                        player_money=trade_stocks(player_money,screen)
-                    elif 500<=x<=750 and 400<=y<=480:
-                        if reincarnation_percent_calc()!=0:
-                            reincarnation()
+                x,y=pygame.mouse.get_pos()
+                if 500 <= x <= 750 and 80 <= y <= 160 and cost<=player_money:
+                    player_money-=cost
+                    level_up()
+                elif 500<=x<=750 and 200<=y<=280:
+                    player_money=visit_convenience_store(player_money,screen)
+                elif 500<=x<=750 and 300<=y<=380:
+                    player_money=trade_stocks(player_money,screen)
+                elif 500<=x<=750 and 400<=y<=480:
+                    if reincarnation_percent_calc()!=0:
+                        reincarnation()
                 if random.randint(1,100)<=beg_probability:
                     player_money+=ceil(touch_money*plus_percent/100)
                     if fever:
@@ -174,7 +176,7 @@ def visit_convenience_store(money, screen):
                 if money >= price and inventory[item]<40:
                     money -= price
                     inventory[item] += 1
-                    plus_percent+=(menu_option+1)*2
+                    plus_percent+=(menu_option+1)*4
 
         screen.fill(WHITE)
         for i, (item, price) in enumerate(team):
@@ -190,14 +192,13 @@ def visit_convenience_store(money, screen):
     return money
 # 주식 정보
 stocks = {
-    "김채원의 굿즈":{"price": 150000, "owned": 0}, 
-    "알파카의 캡슐커피":{"price": 3000000, "owned": 0},
+    "김채원의 굿즈":{"price": 100000, "owned": 0}, 
+    "알파카의 캡슐커피":{"price": 40000, "owned": 0},
     "김종말의 다이어트 용품":{"price": 75000, "owned": 0},
-    "한지호의 마블굿즈":{"price": 1500000, "owned": 0},
-    "신희후의 노트북":{"price": 5000000, "owned": 0},
-    "김수인의 코스프레 용품":{"price": 500000, "owned": 0}
+    "한지호의 마블굿즈":{"price": 300000, "owned": 0},
+    "신희후의 노트북":{"price": 500000, "owned": 0},
+    "김수인의 코스프레 용품":{"price": 1000000, "owned": 0}
 }
-
 
 def reincarnation_percent_calc():
     global percent
@@ -221,6 +222,7 @@ def reincarnation_percent_calc():
         percent+=100*(level-900)//5+3540
     else:
         percent+=150*(level-1000)//5+4740
+    percent*=10
     return percent
     
 # 주식 구매 및 판매
@@ -308,24 +310,8 @@ def reincarnation():
     global player_money, inventory, cost, level, plus_percent, beg_probability, touch_money,stocks,reincarnate,reincarnate_plus_percent
     reincarnate+=1
     beg_probability=min(10+reincarnate,40)
-    player_money = 0
-    reincarnate_plus_percent+=1
-    if level<400:
-        reincarnate_plus_percent+=2*(level-300)//5
-    elif level<500:
-        reincarnate_plus_percent+=5*(level-400)//5+40
-    elif level<600:
-        reincarnate_plus_percent+=20*(level-500)//5+140
-    elif level<700:
-        reincarnate_plus_percent+=40*(level-600)//5+540
-    elif level<800:
-        reincarnate_plus_percent+=60*(level-700)//5+1340
-    elif level<900:
-        reincarnate_plus_percent+=80*(level-800)//5+2540
-    elif level<1000:
-        reincarnate_plus_percent+=100*(level-900)//5+3540
-    else:
-        reincarnate_plus_percent+=150*(level-1000)//5+4740
+    player_money = 21
+    reincarnate_plus_percent+=reincarnation_percent_calc()
     plus_percent=100+reincarnate_plus_percent
     level=1
     cost=10
@@ -333,10 +319,10 @@ def reincarnation():
     inventory = {"김채원의 굿즈":0, "알파카의 캡슐커피":0, "김종말의 다이어트 용품":0, "한지호의 마블굿즈":0,"신희후의 노트북":0,"김수인의 코스프레 용품":0,
              "심유묘 박주환":0, "코스프레남 이승민":0, "허수 최우혁":0, "허리디스크 조준익":0, "그냥 김민학":0, "박경준":0, "게임폐인 김인우":0, "철학과 이준호":0}
     stocks = {
-    "김채원의 굿즈":{"price": 150000, "owned": 0}, 
-    "알파카의 캡슐커피":{"price": 3000000, "owned": 0},
+    "김채원의 굿즈":{"price": 100000, "owned": 0}, 
+    "알파카의 캡슐커피":{"price": 40000, "owned": 0},
     "김종말의 다이어트 용품":{"price": 75000, "owned": 0},
-    "한지호의 마블굿즈":{"price": 1500000, "owned": 0},
-    "신희후의 노트북":{"price": 5000000, "owned": 0},
-    "김수인의 코스프레 용품":{"price": 10000000, "owned": 0}
+    "한지호의 마블굿즈":{"price": 300000, "owned": 0},
+    "신희후의 노트북":{"price": 500000, "owned": 0},
+    "김수인의 코스프레 용품":{"price": 1000000, "owned": 0}
     }
