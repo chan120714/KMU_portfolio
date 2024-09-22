@@ -14,20 +14,55 @@ def resource_path(relative_path):
         # 개발 환경에서 실행된 경우
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
+
+def get_executable_path():
+    if getattr(sys, 'frozen', False):
+        # PyInstaller로 패키징된 실행 파일인 경우
+        return os.path.dirname(sys.executable)
+    else:
+        # 개발 환경에서 실행하는 경우
+        return os.path.dirname(os.path.abspath(__file__))
+
+def get_save_file_path():
+    executable_path = get_executable_path()
+    return os.path.join(executable_path, 'save_file.json')
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-
+button_color = pygame.Color("#FFEECF")
 player_money = 21
 touch_money = 1
 plus_percent = 100
 level=1
 cost=10
 reincarnate=0
+reincarnate_coins=0
+auto_touch=0
 inventory = {"김채원의 굿즈":0, "알파카의 캡슐커피":0, "김종말의 다이어트 용품":0, "한지호의 마블굿즈":0,"신희후의 노트북":0,"김수인의 코스프레 용품":0,
-             "심유묘 박주환":0, "코스프레남 이승민":0, "허수 최우혁":0, "허리디스크 조준익":0, "그냥 김민학":0, "박경준":0, "게임폐인 김인우":0, "철학과 이준호":0}
-save_file = resource_path("save_data.json")
+             "심유묘 박주환":0, "코스프레남 이승민":0, "허수 최우혁":0, "허리디스크 조준익":0, "그냥 김민학":0, "박경준":0, "게임폐인 김인우":0, "철학과 이준호":0,
+             "피버 배율 증가":0, "자동 터치":0, "시작 레벨 증가":0,"엔딩 보기":0}
+save_file = get_save_file_path()
 beg_probability=10
 reincarnate_plus_percent=0
+
+def find_coin():
+    reincarnate_coins=0
+    reincarnate_coins+=inventory["심유묘 박주환"]
+    reincarnate_coins+=inventory["코스프레남 이승민"]
+    reincarnate_coins+=inventory["허수 최우혁"]
+    reincarnate_coins+=inventory["허리디스크 조준익"]
+    reincarnate_coins+=inventory["그냥 김민학"]
+    reincarnate_coins+=inventory["박경준"]
+    reincarnate_coins+=inventory["게임폐인 김인우"]
+    reincarnate_coins+=inventory["철학과 이준호"]
+    return reincarnate_coins
+
+def reincarnate_level_up():
+    global level,touch_money
+    starting_level=inventory["시작 레벨 증가"]
+    level+=starting_level
+    if starting_level>=200:
+        touch_money+=(starting_level-200)*(starting_level-199)//2
+    touch_money+=(starting_level)*(starting_level+1)//2
 def level_up():
     global level
     global cost
@@ -38,8 +73,10 @@ def level_up():
     touch_money+=level
     if level<=200:
         cost*=1.05
-    else:
+    elif level<=300:
         cost*=1.04
+    else:
+        cost*=1.03
     cost=ceil(cost)
 
 
@@ -56,7 +93,9 @@ def beg(screen):
     touch=0
     fever=0
     is_money=1
+    page=1
     start_ticks = pygame.time.get_ticks()
+    auto_tick=pygame.time.get_ticks()
     while running:
         save_game()
         if fever==0 and touch>=50:
@@ -64,12 +103,21 @@ def beg(screen):
             touch=0
             start_ticks = pygame.time.get_ticks()
         if fever==1:
+            if (pygame.time.get_ticks()-auto_tick)>=500:
+                auto_tick=pygame.time.get_ticks()
+                player_money+=inventory["자동 터치"]*(ceil(touch_money*plus_percent/100)*(1+inventory["피버 배율 증가"]))
             elapsed_time = (pygame.time.get_ticks() - start_ticks) / 1000
             if elapsed_time>=10:
                 fever=0
             touch=0
+        else:
+            if (pygame.time.get_ticks()-auto_tick)>=500:
+                auto_tick=pygame.time.get_ticks()
+                player_money+=inventory["자동 터치"]*(ceil(touch_money*plus_percent/100))
         screen.fill(WHITE)
-        pygame.draw.rect(screen,BLACK,[500,80,250,80],2)
+        pygame.draw.rect(screen, button_color, pygame.Rect(100, 400, 200, 100), border_radius=20)
+        draw_text(screen,f"환생상점",40,200,440, BLACK)
+        pygame.draw.rect(screen,button_color, pygame.Rect(500, 80, 250, 80), border_radius=20)
         pygame.draw.rect(screen,BLACK,[500,200,250,80],2)
         pygame.draw.rect(screen,BLACK,[500,300,250,80],2)
         pygame.draw.rect(screen,BLACK,[500,400,250,80],2)
@@ -81,13 +129,16 @@ def beg(screen):
         else:
             draw_text(screen,f"+{level*2+2}/클릭 {touch_money}/클릭",20,620,120,BLACK)
         draw_text(screen,f"{cost}원",20,600,140,BLACK)
-        draw_text(screen,f"동료구하기",40,620,240,BLACK)
-        draw_text(screen,f"중요한물건",40,620,340,BLACK)
-        draw_text(screen,f"환생하기",20,600,420,BLACK)
-        if reincarnation_percent_calc()==False: 
-            draw_text(screen,f"현재 불가능",20,600,440,BLACK)
-        else:
-            draw_text(screen,f"현재 {reincarnation_percent_calc()} % 추가",20,600,440,BLACK)
+        if page==1:
+            draw_text(screen,f"동료구하기",40,620,240,BLACK)
+            draw_text(screen,f"중요한물건",40,620,340,BLACK)
+            draw_text(screen,f"환생하기",20,600,420,BLACK)
+            if reincarnation_percent_calc()==False: 
+                draw_text(screen,f"현재 불가능",20,600,440,BLACK)
+            else:
+                draw_text(screen,f"현재 {reincarnation_percent_calc()} % 추가",20,600,440,BLACK)
+                draw_text(screen,f"환생코인 {find_coin()} 획득",20,600,460,BLACK)
+                
         if fever:
             elapsed_time = (pygame.time.get_ticks() - start_ticks) / 1000
             draw_text(screen,f"피버타임 : {str(int(10 - elapsed_time))}초",30,150,30,(204,0,0))
@@ -120,10 +171,12 @@ def beg(screen):
                 elif 500<=x<=750 and 400<=y<=480:
                     if reincarnation_percent_calc()!=0:
                         reincarnation()
+                elif 100<=x<=300 and 400<=y<=500:
+                    reincarnate_shop(screen)
                 if random.randint(1,100)<=beg_probability:
                     player_money+=ceil(touch_money*plus_percent/100)
                     if fever:
-                        player_money+=ceil(touch_money*plus_percent/100)
+                        player_money+=(ceil(touch_money*plus_percent/100)*(1+inventory["피버 배율 증가"]))
                     type=1
                     touch+=1
                     is_money=1
@@ -136,6 +189,51 @@ def beg(screen):
         pygame.display.flip()
     return True
 
+
+def reincarnate_shop(screen):
+    global inventory,plus_percent,reincarnate_coins
+    team = [("피버 배율 증가",10), ("자동 터치",10), ("시작 레벨 증가",10), ("엔딩 보기",2147483647)]
+    menu_option = 0
+    running = True
+    
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return reincarnate_coins
+            x,y=pygame.mouse.get_pos()
+            if screen.get_width() // 2-400 <= x <= screen.get_width() // 2 +400:
+                if 130<=y<=170:
+                    menu_option = 0
+                elif 180<=y<=220:
+                    menu_option = 1
+                elif 230<=y<=270:
+                    menu_option = 2
+                elif 280<=y<=320:
+                    menu_option = 3
+                elif 330<=y<=370:
+                    menu_option = 4
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if menu_option == len(team):
+                    running = False
+                    return reincarnate_coins
+                item, price = team[menu_option]
+                price+=inventory[item]
+                if reincarnate_coins >= price and inventory[item]<2147483648:
+                    reincarnate_coins -= price
+                    inventory[item] += 1
+
+        screen.fill(WHITE)
+        draw_text(screen, f"피버 배율 증가- { 10+inventory['피버 배율 증가']}원 현재: {1+inventory['피버 배율 증가'] }배", 30, screen.get_width() // 2, 150, BLACK if menu_option == 0 else (150, 150, 150))
+        draw_text(screen, f"자동 터치- { 10+inventory['자동 터치']}원  현재: 0.5초당 {inventory['자동 터치']}번", 30, screen.get_width() // 2, 200, BLACK if menu_option == 1 else (150, 150, 150))
+        draw_text(screen, f"시작 레벨 증가- { 10+inventory['시작 레벨 증가']}원 현재 시작 레벨:{inventory['시작 레벨 증가']}", 30, screen.get_width() // 2, 250, BLACK if menu_option == 2 else (150, 150, 150))
+        draw_text(screen, "엔딩보기- 2147483647 코인", 30, screen.get_width() // 2, 300, BLACK if menu_option == 3 else (150, 150, 150))
+        for i, (item, price) in enumerate(team):
+            pygame.draw.rect(screen,BLACK,[screen.get_width() // 2-400,130 + i * 50,800,40],2)
+        pygame.draw.rect(screen,BLACK,[screen.get_width() // 2-400,330,800,40],2)
+        draw_text(screen, f"나가기", 30, screen.get_width() // 2,350, BLACK if menu_option==4 else (150, 150, 150))
+        draw_text(screen, f"현재 환생 코인: {reincarnate_coins}원", 30, screen.get_width() // 2, 100, BLACK)
+        pygame.display.flip()
+    
 def visit_convenience_store(money, screen):
     global inventory,plus_percent
     team = [("심유묘 박주환",100000), ("코스프레남 이승민",300000), ("허수 최우혁",1000000), ("허리디스크 조준익",5000000), ("그냥 김민학",10000000), ("박경준",100000000), ("게임폐인 김인우",1000000000), 
@@ -172,19 +270,19 @@ def visit_convenience_store(money, screen):
                     running = False
                     return money
                 item, price = team[menu_option]
-                price=ceil(price*(1.1**(inventory[item])))
-                if money >= price and inventory[item]<40:
+                price=ceil(price*(1.02**(inventory[item])))
+                if money >= price and inventory[item]<2147483648:
                     money -= price
                     inventory[item] += 1
-                    plus_percent+=(menu_option+1)*4
+                    plus_percent+=(menu_option+1)*5
 
         screen.fill(WHITE)
         for i, (item, price) in enumerate(team):
             pygame.draw.rect(screen,BLACK,[screen.get_width() // 2-400,130 + i * 50,800,40],2)
-            if inventory[item]==40:
+            if inventory[item]==2147483648:
                 draw_text(screen, f"{item} - INF원 레벨:MAX", 30, screen.get_width() // 2, 150 + i * 50, BLACK if menu_option == i else (150, 150, 150))
             else:
-                draw_text(screen, f"{item} - {ceil(price*(1.1**(inventory[item])))}원 레벨:{inventory[item]}", 30, screen.get_width() // 2, 150 + i * 50, BLACK if menu_option == i else (150, 150, 150))
+                draw_text(screen, f"{item} - {ceil(price*(1.02**(inventory[item])))}원 레벨:{inventory[item]}", 30, screen.get_width() // 2, 150 + i * 50, BLACK if menu_option == i else (150, 150, 150))
         draw_text(screen, f"나가기", 30, screen.get_width() // 2,550, BLACK if menu_option==8 else (150, 150, 150))
         draw_text(screen, f"현재 자금: {money}원", 30, screen.get_width() // 2, 100, BLACK)
         pygame.display.flip()
@@ -225,7 +323,7 @@ def reincarnation_percent_calc():
     percent*=10
     return percent
     
-# 주식 구매 및 판매
+# 주식 구매 및 판매 
 def trade_stocks(money, screen, action="buy"):
     global stocks,beg_probability
     menu_option = 0
@@ -279,15 +377,15 @@ def trade_stocks(money, screen, action="buy"):
     return money
 
 def save_game():
-    global beg_probability,plus_percent,level,cost,touch_money,player_money,inventory,reincarnate,reincarnate_plus_percent
-    data = {'money': player_money, 'inventory': inventory, 'stocks': stocks,'level':level,'plus_percent':plus_percent,'beg_probability':beg_probability,'touch_money':touch_money,'cost':cost,'reincarnate':reincarnate,'reincarnate_plus_percent':reincarnate_plus_percent}
+    global beg_probability,plus_percent,level,cost,touch_money,player_money,inventory,reincarnate,reincarnate_plus_percent,reincarnate_coins
+    data = {'money': player_money, 'inventory': inventory, 'stocks': stocks,'level':level,'plus_percent':plus_percent,'beg_probability':beg_probability,'touch_money':touch_money,'cost':cost,'reincarnate':reincarnate,'reincarnate_plus_percent':reincarnate_plus_percent,'reincarnate_coins':reincarnate_coins}
     with open(save_file, 'w') as f:
         json.dump(data, f)
     
 
 def load_game():
     global inventory, player_money,cost,reincarnate_plus_percent,reincarnate
-    global stocks, level, plus_percent,beg_probability,touch_money
+    global stocks, level, plus_percent,beg_probability,touch_money,reincarnate_coins
     try:
         with open(save_file, 'r') as f:
             data = json.load(f)
@@ -301,13 +399,14 @@ def load_game():
         cost=data['cost']
         reincarnate_plus_percent=data['reincarnate_plus_percent']
         reincarnate=data['reincarnate']
+        reincarnate_coins=data['reincarnate_coins']
         return True
     except FileNotFoundError:
         return False
 
 #환생기능 구현 할거임 ㅋㅋ
 def reincarnation():
-    global player_money, inventory, cost, level, plus_percent, beg_probability, touch_money,stocks,reincarnate,reincarnate_plus_percent
+    global player_money, inventory, cost, level, plus_percent, beg_probability, touch_money,stocks,reincarnate,reincarnate_plus_percent,reincarnate_coins
     reincarnate+=1
     beg_probability=min(10+reincarnate,40)
     player_money = 21
@@ -316,8 +415,14 @@ def reincarnation():
     level=1
     cost=10
     touch_money=1
+    reincarnate_coins+=find_coin()
+    피버_배율_증가=inventory["피버 배율 증가"]
+    자동_터치=inventory["자동 터치"]
+    시작_레벨_증가=inventory["시작 레벨 증가"]
+    엔딩_보기=inventory["엔딩 보기"]
     inventory = {"김채원의 굿즈":0, "알파카의 캡슐커피":0, "김종말의 다이어트 용품":0, "한지호의 마블굿즈":0,"신희후의 노트북":0,"김수인의 코스프레 용품":0,
-             "심유묘 박주환":0, "코스프레남 이승민":0, "허수 최우혁":0, "허리디스크 조준익":0, "그냥 김민학":0, "박경준":0, "게임폐인 김인우":0, "철학과 이준호":0}
+             "심유묘 박주환":0, "코스프레남 이승민":0, "허수 최우혁":0, "허리디스크 조준익":0, "그냥 김민학":0, "박경준":0, "게임폐인 김인우":0, "철학과 이준호":0,
+             "피버 배율 증가":피버_배율_증가, "자동 터치":자동_터치, "시작 레벨 증가":시작_레벨_증가,"엔딩 보기":엔딩_보기}
     stocks = {
     "김채원의 굿즈":{"price": 100000, "owned": 0}, 
     "알파카의 캡슐커피":{"price": 40000, "owned": 0},
@@ -326,3 +431,4 @@ def reincarnation():
     "신희후의 노트북":{"price": 500000, "owned": 0},
     "김수인의 코스프레 용품":{"price": 1000000, "owned": 0}
     }
+    reincarnate_level_up()

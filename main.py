@@ -3,6 +3,7 @@ import sys
 from menu import display_menu
 pygame.init()
 
+
 running=True
 font = pygame.font.SysFont("malgungothic", 20)
 screen_width = 800
